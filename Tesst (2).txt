@@ -1,0 +1,90 @@
+ <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
+
+application.properties
+
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=mohamed.mrabet09@gmail.com
+spring.mail.password=ewxcroakdadzyzuo
+
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+
+User Entity
+@Column(nullable = true)
+    private String passwordResetToken;
+
+IUserService
+    User findBymail(String mail);
+    void createPasswordResetTokenForUser(User user);
+    Optional<User> findUserByPasswordResetToken(String token);
+    void changeUserPassword(User user, String password);
+
+UserServiceImpl
+
+public void createPasswordResetTokenForUser(final User user) {
+        String token = UUID.randomUUID().toString();
+        user.setPasswordResetToken(token);
+        userRepository.save(user);
+    }
+
+    public Optional<User> findUserByPasswordResetToken(final String token) {
+        return userRepository.findByPasswordResetToken(token);
+    }
+
+    public void changeUserPassword(final User user, final String password) {
+        // encode the password and set it
+        user.setPassword(passwordEncoder.encode(password));
+        // clear the reset token
+        user.setPasswordResetToken(null);
+        userRepository.save(user);
+    }
+
+UserRepo
+ Optional<User> findBymail(String mail);
+ Optional<User> findByPasswordResetToken(String token);
+
+UserRestController
+@Autowired
+    private JavaMailSender javaMailSender;
+
+@PostMapping("/forget-password")
+    public ResponseEntity<?> forgetPassword(@RequestParam String mail) {
+        User user = userService.findBymail(mail);
+        if (user == null) {
+            return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+        }
+
+        userService.createPasswordResetTokenForUser(user);
+
+        // send email
+        SimpleMailMessage passwordResetEmail = new SimpleMailMessage();
+        passwordResetEmail.setTo(user.getMail());
+        passwordResetEmail.setSubject("Password Reset Request");
+        passwordResetEmail.setText("To reset your password, click the link below:\n" +  user.getPasswordResetToken());
+
+        javaMailSender.send(passwordResetEmail);
+
+        return new ResponseEntity<>("Password reset link sent to your email", HttpStatus.OK);
+    }
+
+
+@PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestParam String token, @RequestParam String newPassword) {
+        Optional<User> userOptional = userService.findUserByPasswordResetToken(token);
+        if (!userOptional.isPresent()) {
+            return new ResponseEntity<>("Invalid token", HttpStatus.BAD_REQUEST);
+        }
+
+        User user = userOptional.get();
+        userService.changeUserPassword(user, newPassword);
+
+        return new ResponseEntity<>("Password changed successfully", HttpStatus.OK);
+    }
+
+
