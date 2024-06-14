@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 
-const  Base_URL = ["http://backend_ctr:8089/espritgather/"]
+const  Base_URL = ["http://192.168.28.128:8089/espritgather/"]
 
 
 @Injectable({
